@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Valentine?</title>
+  <style>
+    :root{ --bg:#FF2E2E; --text:#fff; --btn-bg:#fff; --btn-text:#111; --wrap-w:min(760px,92vw); }
+    *{box-sizing:border-box;}
+    body{
+      margin:0; height:100vh; overflow:hidden;
+      background:var(--bg); color:var(--text);
+      display:flex; align-items:center; justify-content:center;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    #trailLayer{ position:fixed; inset:0; pointer-events:none; z-index:1; overflow:hidden; }
+    .trail-line{
+      position:absolute; color:rgba(255,255,255,0.95);
+      font-weight:800; font-size:16px; white-space:nowrap;
+      text-shadow:0 3px 14px rgba(0,0,0,0.35);
+      transform-origin:left top; user-select:none; opacity:0.95;
+    }
+    .rot-0{transform:rotate(0deg);}
+    .rot-180{transform:rotate(180deg);}
+    .rot-90l{transform:rotate(-90deg);}
+    .rot-90r{transform:rotate(90deg);}
+
+    .wrap{ width:var(--wrap-w); text-align:center; padding:24px 16px; position:relative; z-index:2; }
+    h1{ margin:0 0 10px; font-size:clamp(30px,4.5vw,52px); line-height:1.1; letter-spacing:-0.02em; }
+    .submsg{ margin:0 auto 26px; max-width:640px; font-size:clamp(16px,2vw,20px); opacity:0.92; min-height:1.6em; }
+
+    .btn-row{ display:flex; justify-content:center; align-items:center; gap:18px; height:110px; position:relative; z-index:3; }
+    button{
+      border:0; background:var(--btn-bg); color:var(--btn-text);
+      border-radius:999px; padding:14px 28px; font-size:18px; font-weight:800;
+      cursor:pointer; line-height:1;
+      box-shadow:none;
+      transition: transform 200ms ease, filter 140ms ease;
+      user-select:none; min-width:120px; position:relative; z-index:3;
+    }
+    button:hover{ filter:brightness(0.97); transform:translateY(-1px); }
+    button:active{ transform:translateY(0) scale(0.99); }
+    #noPlaceholder{visibility:hidden;}
+    .hint{ margin-top:14px; font-size:14px; opacity:0.85; min-height:18px; }
+
+    /* =========================
+       Intro heart zoom overlay
+       ========================= */
+    #introOverlay{
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#ffffff;
+      transition: opacity 600ms ease;
+    }
+    #introOverlay.hidden{
+      opacity:0;
+      pointer-events:none;
+    }
+
+    .heart-wrapper{
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    .heart-btn{
+      width:90px;
+      height:90px;
+      border:none;
+      background:transparent;
+      cursor:pointer;
+      padding:0;
+      display:grid;
+      place-items:center;
+      animation: heartPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes heartPulse{
+      0%,100%{ transform: scale(1); }
+      50%{ transform: scale(1.12); }
+    }
+
+    .heart{
+      width:59px;
+      height:59px;
+      position:relative;
+      transform: rotate(45deg);
+      background: var(--bg);
+      border-radius:14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .heart::before,
+    .heart::after{
+      content:"";
+      position:absolute;
+      width:58px;
+      height:58px;
+      background: var(--bg);
+      border-radius:50%;
+    }
+    .heart::before{ left:-29px; top:0; }
+    .heart::after{ left:0; top:-29px; }
+
+    #introOverlay.zooming .heart-btn{ animation:none; }
+    #introOverlay.zooming .heart{
+      animation: heartZoom 820ms cubic-bezier(.2,.9,.2,1) forwards;
+    }
+    @keyframes heartZoom{
+      0%   { transform: rotate(45deg) scale(1);   opacity:1; }
+      70%  { transform: rotate(45deg) scale(24);  opacity:1; }
+      100% { transform: rotate(45deg) scale(34);  opacity:0; }
+    }
+
+    #mainUI{
+      opacity:0;
+      transition: opacity 520ms ease;
+    }
+    #mainUI.ready{
+      opacity:1;
+    }
+  </style>
+</head>
+<body>
+  <div id="trailLayer"></div>
+
+  <!-- Intro -->
+  <div id="introOverlay" aria-label="Intro">
+    <button class="heart-btn" id="heartStart" type="button" aria-label="Start">
+      <div class="heart"></div>
+    </button>
+  </div>
+
+  <!-- Main UI -->
+  <div id="mainUI">
+    <div class="wrap">
+      <h1 id="mainTitle">Will you be my Valentine?</h1>
+      <div class="submsg" id="subMessage"></div>
+
+      <div class="btn-row" id="btnRow">
+        <button id="yesBtn" type="button">Yes</button>
+        <button id="noBtn" type="button">No</button>
+      </div>
+
+      <div class="hint" id="hint"></div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================
+       Heart intro logic
+       ========================= */
+    const introOverlay = document.getElementById("introOverlay");
+    const heartStart   = document.getElementById("heartStart");
+    const mainUI       = document.getElementById("mainUI");
+
+    document.body.style.background = "#ffffff";
+
+    heartStart.addEventListener("click", () => {
+      introOverlay.classList.add("zooming");
+      setTimeout(() => { document.body.style.background = "var(--bg)"; }, 320);
+      setTimeout(() => { mainUI.classList.add("ready"); }, 420);
+      setTimeout(() => { introOverlay.classList.add("hidden"); }, 680);
+    });
+
+    /* =========================
+       Main logic
+       ========================= */
+    const yesBtn = document.getElementById("yesBtn");
+    const noBtn = document.getElementById("noBtn");
+    const btnRow = document.getElementById("btnRow");
+    const subMessageEl = document.getElementById("subMessage");
+    const hint = document.getElementById("hint");
+    const trailLayer = document.getElementById("trailLayer");
+    const mainTitle = document.getElementById("mainTitle");
+
+    // Config
+    const CHASE_MS = 15000;
+    const SPEED = 320;               // px/sec
+    const SCREEN_PAD = 10;
+    const TYPE_EVERY_MS = 28;
+    const MAX_LINES = 320;
+    const TRAIL_TEXT = "Bhaaagooooo!! Bhagwaan k liye Mujhe chodh do. Main Tumhaare bacche ka papa banne wala hoon. Aise mera peecha mat karo tum. Jaane do, mujhe jaane do.";
+
+    // Patterns
+    const PATTERN_A = ["right","up","left","left","down","right"];
+    const PATTERN_B = ["right","down","left","left","up","right","down","left"];
+
+    // No-click messages
+    const steps = [
+      "You really mean that?",
+      "This is unacceptable, please reevaluate.",
+      "You MUST become my valentine bb",
+      "Now this is hurting my feelings",
+      "Ok fine, just click one more time for \"No\".",
+      "I lied, \"No\" means \"Yes\""
+    ];
+
+    // State
+    let chaseStarted = false;
+    let chaseEnded = false;
+    let finalShown = false;
+
+    let noIsFloating = false;
+    let x=0, y=0;
+    let lastMoveT = null;
+    let rafId = null;
+
+    let pattern = null;
+    let patternIndex = 0;
+    let dir = null;
+
+    // Trail typing
+    let lastTypeAt = 0;
+    let msgIndex = 0;
+    let currentLine = null;
+    let currentLineDir = null;
+    const allLines = [];
+
+    let noClickCount = 0;
+
+    // placeholder ref
+    let placeholderEl = null;
+
+    // ignore immediate extra pointerenter after DOM moves
+    let ignoreEnterUntil = 0;
+
+    function showFinalState(){
+      if (finalShown) return;
+      finalShown = true;
+
+      // Stop chase + reset UI
+      chaseEnded = true;
+      returnHome();
+
+      // Clear trail (optional, but keeps it clean at the end)
+      trailLayer.innerHTML = "";
+
+      // Update title + simplify UI
+      mainTitle.innerHTML = "Well, you are stuck with me for life.<br><b><br>Happy Valentine's Day!";
+      subMessageEl.textContent = "";
+      hint.textContent = "";
+
+      // Replace buttons with a single "Our Date" button
+      btnRow.innerHTML = '<button id="dateBtn" type="button">Our Date</button>';
+
+      // Optional: small feedback on click (no redirect)
+      const dateBtn = document.getElementById("dateBtn");
+      dateBtn.addEventListener("click", () => {
+        hint.textContent = "";
+      });
+    }
+
+    function rotationClassForDir(d){
+      if (d === "right") return "rot-0";
+      if (d === "left") return "rot-180";
+      if (d === "up") return "rot-90l";
+      if (d === "down") return "rot-90r";
+      return "rot-0";
+    }
+
+    function pickPattern(){
+      pattern = (Math.random() < 0.5) ? PATTERN_A : PATTERN_B;
+      patternIndex = 0;
+      dir = pattern[0]; // ALWAYS right first
+    }
+
+    function advancePatternStep(){
+      patternIndex = (patternIndex + 1) % pattern.length;
+      dir = pattern[patternIndex];
+      currentLine = null;
+      currentLineDir = null;
+    }
+
+    function startFloating(){
+      if (noIsFloating || finalShown) return;
+
+      const rect = noBtn.getBoundingClientRect();
+
+      placeholderEl = document.createElement("div");
+      placeholderEl.id = "noPlaceholder";
+      placeholderEl.style.width = rect.width + "px";
+      placeholderEl.style.height = rect.height + "px";
+      btnRow.insertBefore(placeholderEl, noBtn);
+
+      document.body.appendChild(noBtn);
+
+      x = rect.left;
+      y = rect.top;
+
+      noBtn.style.position = "fixed";
+      noBtn.style.left = x + "px";
+      noBtn.style.top  = y + "px";
+      noBtn.style.margin = "0";
+      noBtn.style.transition = "none";
+      noBtn.style.zIndex = "9998";
+
+      noIsFloating = true;
+
+      pickPattern();
+
+      ignoreEnterUntil = performance.now() + 250;
+
+      rafId = requestAnimationFrame(tick);
+      setTimeout(endChaseAndReturnHome, CHASE_MS);
+    }
+
+    function endChaseAndReturnHome(){
+      if (chaseEnded || finalShown) return;
+      chaseEnded = true;
+      hint.textContent = "";
+      returnHome();
+    }
+
+    function returnHome(){
+      if (!noIsFloating || !placeholderEl) return;
+
+      const target = placeholderEl.getBoundingClientRect();
+      noBtn.style.transition = "left 520ms ease, top 520ms ease";
+      noBtn.style.left = target.left + "px";
+      noBtn.style.top  = target.top  + "px";
+
+      setTimeout(() => {
+        // If final state already replaced the row, just clean up safely
+        if (!placeholderEl) return;
+
+        placeholderEl.replaceWith(noBtn);
+
+        noBtn.style.position = "relative";
+        noBtn.style.left = "";
+        noBtn.style.top = "";
+        noBtn.style.transition = "";
+        noBtn.style.zIndex = "3";
+
+        noIsFloating = false;
+        placeholderEl = null;
+
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        lastMoveT = null;
+      }, 560);
+    }
+
+    function clampToViewport(rect){
+      const minX = SCREEN_PAD;
+      const minY = SCREEN_PAD;
+      const maxX = window.innerWidth  - rect.width  - SCREEN_PAD;
+      const maxY = window.innerHeight - rect.height - SCREEN_PAD;
+      x = Math.max(minX, Math.min(maxX, x));
+      y = Math.max(minY, Math.min(maxY, y));
+    }
+
+    function hitEdge(rect){
+      const minX = SCREEN_PAD;
+      const minY = SCREEN_PAD;
+      const maxX = window.innerWidth  - rect.width  - SCREEN_PAD;
+      const maxY = window.innerHeight - rect.height - SCREEN_PAD;
+
+      if (x <= minX && dir === "left") return true;
+      if (x >= maxX && dir === "right") return true;
+      if (y <= minY && dir === "up") return true;
+      if (y >= maxY && dir === "down") return true;
+      return false;
+    }
+
+    function buttonExitPoint(){
+      const r = noBtn.getBoundingClientRect();
+      let px = r.left + r.width * 0.5;
+      let py = r.top  + r.height * 0.5;
+      const exit = 14;
+      if (dir === "right") px = r.left + exit;
+      if (dir === "left")  px = r.right - exit;
+      if (dir === "down")  py = r.top + exit;
+      if (dir === "up")    py = r.bottom - exit;
+
+      px = Math.max(0, Math.min(window.innerWidth, px));
+      py = Math.max(0, Math.min(window.innerHeight, py));
+
+      return {x:px, y:py};
+    }
+
+    function startNewTrailLine(){
+      const el = document.createElement("div");
+      el.className = "trail-line " + rotationClassForDir(dir);
+      const p = buttonExitPoint();
+      el.style.left = (p.x + 10) + "px";
+      el.style.top  = (p.y + 8) + "px";
+      trailLayer.appendChild(el);
+      allLines.push(el);
+      while (allLines.length > MAX_LINES) {
+        const old = allLines.shift();
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+      }
+      currentLine = el;
+      currentLineDir = dir;
+    }
+
+    function typeTrail(){
+      if (chaseEnded || !noIsFloating || !dir || finalShown) return;
+
+      if (!currentLine || currentLineDir !== dir) startNewTrailLine();
+
+      const ch = TRAIL_TEXT[msgIndex % TRAIL_TEXT.length];
+      msgIndex++;
+      currentLine.textContent += ch;
+      if (msgIndex % TRAIL_TEXT.length === 0) currentLine.textContent += " • ";
+    }
+
+    function tick(t){
+      rafId = requestAnimationFrame(tick);
+      if (!noIsFloating || chaseEnded || finalShown) return;
+
+      if (lastMoveT == null) lastMoveT = t;
+      const dt = (t - lastMoveT) / 1000;
+      lastMoveT = t;
+
+      const step = SPEED * dt;
+
+      if (dir === "right") x += step;
+      if (dir === "left")  x -= step;
+      if (dir === "down")  y += step;
+      if (dir === "up")    y -= step;
+
+      const rect = noBtn.getBoundingClientRect();
+      clampToViewport(rect);
+
+      noBtn.style.left = x + "px";
+      noBtn.style.top  = y + "px";
+
+      if (hitEdge(rect)) {
+        advancePatternStep();
+      }
+
+      const now = performance.now();
+      if (now - lastTypeAt >= TYPE_EVERY_MS) {
+        lastTypeAt = now;
+        typeTrail();
+      }
+    }
+
+    noBtn.addEventListener("pointerenter", () => {
+      if (chaseEnded || finalShown) return;
+
+      const now = performance.now();
+      if (now < ignoreEnterUntil) return;
+
+      if (!chaseStarted) {
+        chaseStarted = true;
+        hint.textContent = "";
+        startFloating();
+        return;
+      }
+
+      advancePatternStep();
+    });
+
+    yesBtn.addEventListener("click", () => {
+      // No redirect. Same final outcome.
+      showFinalState();
+    });
+
+    noBtn.addEventListener("click", () => {
+      if (finalShown) return;
+
+      const idx = Math.min(noClickCount, steps.length - 1);
+      subMessageEl.textContent = steps[idx];
+      noClickCount++;
+
+      // If this was the LAST message
+      if (noClickCount === steps.length) {
+
+        // Small dramatic pause before changing everything
+        setTimeout(() => {
+          showFinalState();
+        }, 4000);  // you can adjust this delay
+      }
+    });
+
+  </script>
+</body>
+</html>
