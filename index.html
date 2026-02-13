@@ -245,14 +245,9 @@
       subMessageEl.textContent = "";
       hint.textContent = "";
 
-      // Replace buttons with a single "Our Date" button
-      btnRow.innerHTML = '<button id="dateBtn" type="button">Our Date</button>';
+      // Remove all buttons at the end
+      btnRow.innerHTML = "";
 
-      // Optional: small feedback on click (no redirect)
-      const dateBtn = document.getElementById("dateBtn");
-      dateBtn.addEventListener("click", () => {
-        hint.textContent = "";
-      });
     }
 
     function rotationClassForDir(d){
